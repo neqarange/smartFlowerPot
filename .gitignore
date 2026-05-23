@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+
+# Next.js
+.next/
+out/
+
+# PlatformIO build
+.pio/
+.vscode/
+
+# Build
+build/
+dist/
+*.hex
+*.elf
+
+# Misc
+.DS_Store
+.idea

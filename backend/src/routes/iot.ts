@@ -73,7 +73,7 @@ router.get('/readings', authenticateUser, async (req: Request, res: Response) =>
 // GET /api/iot/claim/:pairingCode
 // ESP32 polluje tento endpoint dokud uživatel nespáruje zařízení
 router.get('/claim/:pairingCode', async (req: Request, res: Response) => {
-  const code = req.params.pairingCode.trim().toUpperCase();
+  const code = String(req.params.pairingCode).trim().toUpperCase();
 
   try {
     const user = await User.findOne({ 'devices.pairingCode': code });

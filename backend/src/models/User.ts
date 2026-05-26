@@ -5,6 +5,7 @@ export interface IDevice {
   deviceId: string;
   name: string;
   token: string;
+  pairingCode?: string;
   activeProfileId?: string;
 }
 
@@ -24,6 +25,7 @@ const deviceSchema = new Schema<IDevice>(
     deviceId:        { type: String, required: true },
     name:            { type: String, required: true },
     token:           { type: String, required: true },
+    pairingCode:     { type: String, default: null },
     activeProfileId: { type: String, default: null },
   },
   { _id: false }

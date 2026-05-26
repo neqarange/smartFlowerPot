@@ -1,146 +1,54 @@
-import { Router, Request, Response } from 'express';
-import { randomUUID } from 'crypto';
-import jwt from 'jsonwebtoken';
-import { authenticateUser } from '../middleware/authUser';
-import { User } from '../models/User';
-import { validate } from '../middleware/validate';
+import mongoose, { Document, Schema } from 'mongoose';
+import bcrypt from 'bcryptjs';
 
-const router = Router();
-
-function generateDeviceToken(deviceId: string): string {
-  return jwt.sign({ deviceId }, process.env.JWT_SECRET!);
+export interface IDevice {
+  deviceId: string;
+  name: string;
+  token: string;
+  activeProfileId?: string;
 }
 
-// POST /api/users/devices
-router.post('/devices', authenticateUser, async (req: Request, res: Response) => {
-  const error = validate(req.body, { name: { type: 'string' } });
-  if (error) {
-    res.status(400).json({ error });
-    return;
-  }
+export interface IUser extends Document {
+  username: string;
+  email: string;
+  name: string;
+  surname: string;
+  password: string;
+  tokens: string[];
+  devices: IDevice[];
+  comparePassword(candidate: string): Promise<boolean>;
+}
 
-  const { name } = req.body;
+const deviceSchema = new Schema<IDevice>(
+  {
+    deviceId:        { type: String, required: true },
+    name:            { type: String, required: true },
+    token:           { type: String, required: true },
+    activeProfileId: { type: String, default: null },
+  },
+  { _id: false }
+);
 
-  try {
-    const user = await User.findById(req.user!.userId);
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
+const userSchema = new Schema<IUser>(
+  {
+    username: { type: String, required: true, unique: true, trim: true },
+    email:    { type: String, required: true, unique: true, lowercase: true, trim: true },
+    name:     { type: String, required: true, trim: true },
+    surname:  { type: String, required: true, trim: true },
+    password: { type: String, required: true },
+    tokens:   { type: [String], default: [] },
+    devices:  { type: [deviceSchema], default: [] },
+  },
+  { timestamps: true }
+);
 
-    if (user.devices.some((d) => d.name === name.trim())) {
-      res.status(409).json({ error: 'Device already added' });
-      return;
-    }
-
-    const deviceId = randomUUID();
-    const token = generateDeviceToken(deviceId);
-
-    user.devices.push({ deviceId, name: name.trim(), token });
-    await user.save();
-
-    res.status(201).json({ devices: user.devices });
-  } catch (err) {
-    console.error('[add device]', err);
-    res.status(500).json({ error: 'Failed to add device' });
-  }
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
+  this.password = await bcrypt.hash(this.password, 12);
 });
 
-// GET /api/users/devices
-router.get('/devices', authenticateUser, async (req: Request, res: Response) => {
-  try {
-    const user = await User.findById(req.user!.userId).select('devices');
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
+userSchema.methods.comparePassword = function (candidate: string): Promise<boolean> {
+  return bcrypt.compare(candidate, this.password);
+};
 
-    res.json({ devices: user.devices });
-  } catch (err) {
-    console.error('[get devices]', err);
-    res.status(500).json({ error: 'Failed to get devices' });
-  }
-});
-
-// PUT /api/users/devices/:deviceId/profile
-router.put('/devices/:deviceId/profile', authenticateUser, async (req: Request, res: Response) => {
-  const { profileId } = req.body;
-  if (!profileId || typeof profileId !== 'string') {
-    res.status(400).json({ error: 'profileId is required' });
-    return;
-  }
-
-  try {
-    const user = await User.findById(req.user!.userId);
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
-
-    const device = user.devices.find((d) => d.deviceId === req.params.deviceId);
-    if (!device) {
-      res.status(404).json({ error: 'Device not found' });
-      return;
-    }
-
-    device.activeProfileId = profileId;
-    await user.save();
-
-    res.json({ devices: user.devices });
-  } catch (err) {
-    console.error('[set device profile]', err);
-    res.status(500).json({ error: 'Failed to set profile' });
-  }
-});
-
-// DELETE /api/users/devices/:deviceId/profile
-router.delete('/devices/:deviceId/profile', authenticateUser, async (req: Request, res: Response) => {
-  try {
-    const user = await User.findById(req.user!.userId);
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
-
-    const device = user.devices.find((d) => d.deviceId === req.params.deviceId);
-    if (!device) {
-      res.status(404).json({ error: 'Device not found' });
-      return;
-    }
-
-    device.activeProfileId = undefined;
-    await user.save();
-
-    res.json({ devices: user.devices });
-  } catch (err) {
-    console.error('[remove device profile]', err);
-    res.status(500).json({ error: 'Failed to remove profile' });
-  }
-});
-
-// POST /api/users/devices/:deviceId/regenerate-token
-router.post('/devices/:deviceId/regenerate-token', authenticateUser, async (req: Request, res: Response) => {
-  try {
-    const user = await User.findById(req.user!.userId);
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
-
-    const device = user.devices.find((d) => d.deviceId === req.params.deviceId);
-    if (!device) {
-      res.status(404).json({ error: 'Device not found' });
-      return;
-    }
-
-    device.token = generateDeviceToken(device.deviceId);
-    await user.save();
-
-    res.json({ deviceId: device.deviceId, name: device.name, token: device.token });
-  } catch (err) {
-    console.error('[regenerate token]', err);
-    res.status(500).json({ error: 'Failed to regenerate token' });
-  }
-});
-
-export default router;
+export const User = mongoose.model<IUser>('User', userSchema);

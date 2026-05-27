@@ -1,7 +1,18 @@
+import type { FlowerProfile, ThresholdRange } from "./types";
+
 export type Device = {
   deviceId: string;
   name: string;
   token: string;
+  activeProfileId?: string;
+};
+
+export type ProfileInput = {
+  flowerName: string;
+  public: boolean;
+  temp: ThresholdRange;
+  humidity: ThresholdRange;
+  light: ThresholdRange;
 };
 
 export type AuthResponse = {
@@ -82,5 +93,44 @@ export function addDevice(name: string, pairingCode: string) {
 export function regenerateDeviceToken(deviceId: string) {
   return apiFetch<RegenerateResponse>(`/api/proxy/users/devices/${deviceId}/regenerate-token`, {
     method: "POST",
+  });
+}
+
+export function listProfiles() {
+  return apiFetch<{ profiles: FlowerProfile[] }>("/api/proxy/profiles");
+}
+
+export function getProfile(id: string) {
+  return apiFetch<{ profile: FlowerProfile }>(`/api/proxy/profiles/${id}`);
+}
+
+export function createProfile(body: ProfileInput) {
+  return apiFetch<{ profile: FlowerProfile }>("/api/proxy/profiles", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateProfile(id: string, body: ProfileInput) {
+  return apiFetch<{ profile: FlowerProfile }>(`/api/proxy/profiles/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteProfile(id: string) {
+  return apiFetch<{ ok: true }>(`/api/proxy/profiles/${id}`, { method: "DELETE" });
+}
+
+export function assignProfileToDevice(deviceId: string, profileId: string) {
+  return apiFetch<{ ok: true }>(`/api/proxy/users/devices/${deviceId}/profile`, {
+    method: "PUT",
+    body: JSON.stringify({ profileId }),
+  });
+}
+
+export function unassignProfileFromDevice(deviceId: string) {
+  return apiFetch<{ ok: true }>(`/api/proxy/users/devices/${deviceId}/profile`, {
+    method: "DELETE",
   });
 }

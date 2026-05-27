@@ -50,6 +50,11 @@
   --color-amber-brand: #F5A623;
   --color-ok: #7DC97F;
   --color-ok-foreground: #0A0A0A;
+  --color-leaf: #7DC97F;
+  --color-leaf-soft: oklch(0.86 0.08 145);
+  --color-leaf-glow: oklch(0.78 0.13 145 / 35%);
+  --color-warn-glow: oklch(0.78 0.16 70 / 35%);
+  --color-error-glow: oklch(0.65 0.22 25 / 35%);
 }
 
 /* Light mode (unused — app forces dark) */

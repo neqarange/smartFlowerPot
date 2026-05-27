@@ -7,7 +7,8 @@
     "dev": "tsx watch src/app.ts",
     "build": "tsc",
     "start": "node dist/app.js",
-    "generate-token": "tsx src/scripts/generateToken.ts"
+    "generate-token": "tsx src/scripts/generateToken.ts",
+    "seed-community": "tsx src/scripts/seedCommunityProfiles.ts"
   },
   "dependencies": {
     "bcryptjs": "3.0.3",

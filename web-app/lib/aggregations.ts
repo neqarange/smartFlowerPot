@@ -1,11 +1,16 @@
-import type { HistoryRow, Metric, Reading, SensorReading } from "./types";
-import { statusFor } from "./sensor-thresholds";
+import type { FlowerProfile, HistoryRow, Metric, Reading, SensorReading } from "./types";
+import { statusForWithProfile } from "./sensor-thresholds";
 import type { NumericField } from "./sensor-thresholds";
 
-export function latestMetric(readings: SensorReading[], field: NumericField, unit: string): Metric {
+export function latestMetric(
+  readings: SensorReading[],
+  field: NumericField,
+  unit: string,
+  profile?: FlowerProfile | null,
+): Metric {
   if (readings.length === 0) return { value: 0, unit, status: "nodata" };
   const value = Math.round(readings[0][field]);
-  return { value, unit, status: statusFor(field, readings[0][field]) };
+  return { value, unit, status: statusForWithProfile(field, readings[0][field], profile) };
 }
 
 export function aggregateByHour(

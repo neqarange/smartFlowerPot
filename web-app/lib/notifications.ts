@@ -1,6 +1,6 @@
-import type { Notification, SensorReading } from "./types";
+import type { FlowerProfile, Notification, SensorReading } from "./types";
 import type { Device } from "./api";
-import { statusFor, THRESHOLDS } from "./sensor-thresholds";
+import { okBandFor, statusForWithProfile } from "./sensor-thresholds";
 import type { NumericField } from "./sensor-thresholds";
 
 const FIELD_META: Record<NumericField, { label: string; unit: string; adjLow: string; adjHigh: string }> = {
@@ -13,26 +13,34 @@ const FIELD_META: Record<NumericField, { label: string; unit: string; adjLow: st
 
 const FIELDS: NumericField[] = ["soilMoisture", "airTemp", "airMoisture", "light", "uvIndex"];
 
-function buildMessage(field: NumericField, value: number, deviceName: string): string {
+function buildMessage(
+  field: NumericField,
+  value: number,
+  deviceName: string,
+  profile?: FlowerProfile | null,
+): string {
   const { label, unit, adjLow, adjHigh } = FIELD_META[field];
-  const adj = value < THRESHOLDS[field].ok[0] ? adjLow : adjHigh;
+  const okBand = okBandFor(field, profile);
+  const adj = value < okBand[0] ? adjLow : adjHigh;
   return `${deviceName} ${label} is ${adj} (${Math.round(value)}${unit})`;
 }
 
 export function deriveNotifications(
   devices: Device[],
   readingsByDevice: Record<string, SensorReading[]>,
+  profilesByDevice: Record<string, FlowerProfile | null> = {},
 ): Notification[] {
   const results: Notification[] = [];
   for (const device of devices) {
     const readings = readingsByDevice[device.deviceId] ?? [];
     if (readings.length === 0) continue;
     const latest = readings[0];
+    const profile = profilesByDevice[device.deviceId] ?? null;
     for (const field of FIELDS) {
-      if (statusFor(field, latest[field]) === "ok") continue;
+      if (statusForWithProfile(field, latest[field], profile) === "ok") continue;
       results.push({
         id: `${device.deviceId}-${field}`,
-        message: buildMessage(field, latest[field], device.name),
+        message: buildMessage(field, latest[field], device.name, profile),
         timestamp: latest.createdAt,
         read: false,
       });

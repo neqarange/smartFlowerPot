@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, Copy, Check } from "lucide-react";
+import Link from "next/link";
+import { RefreshCw, Copy, Check, Sprout } from "lucide-react";
 
 import { regenerateDeviceToken, ApiError, type Device, type RegenerateResponse } from "@/lib/api";
+import type { FlowerProfile } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DeviceProfilePicker } from "@/components/profiles/assign-profile-picker";
 
-function DeviceCard({ device }: { device: Device }) {
+function DeviceCard({ device, profiles }: { device: Device; profiles: FlowerProfile[] }) {
   const [regenerated, setRegenerated] = useState<RegenerateResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -50,6 +53,19 @@ function DeviceCard({ device }: { device: Device }) {
           </Button>
         </div>
 
+        <div className="flex flex-col gap-1.5 pt-2 border-t border-card-foreground/10">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-card-foreground/60 flex items-center gap-1.5">
+              <Sprout className="size-3" />
+              Flower profile
+            </span>
+            <Link href="/profiles" className="text-[11px] text-card-foreground/50 underline hover:text-card-foreground/80">
+              Manage
+            </Link>
+          </div>
+          <DeviceProfilePicker device={device} profiles={profiles} />
+        </div>
+
         {regenerated && (
           <div>
             <p className="text-xs text-card-foreground/60 mb-1.5">New token — copy and reflash your hardware:</p>
@@ -71,7 +87,7 @@ function DeviceCard({ device }: { device: Device }) {
   );
 }
 
-export function DeviceList({ devices }: { devices: Device[] }) {
+export function DeviceList({ devices, profiles }: { devices: Device[]; profiles: FlowerProfile[] }) {
   if (devices.length === 0) {
     return (
       <p className="text-sm text-white/40 py-4">No devices yet. Add your first pot above.</p>
@@ -81,7 +97,7 @@ export function DeviceList({ devices }: { devices: Device[] }) {
   return (
     <div className="flex flex-col gap-3">
       {devices.map((d) => (
-        <DeviceCard key={d.deviceId} device={d} />
+        <DeviceCard key={d.deviceId} device={d} profiles={profiles} />
       ))}
     </div>
   );

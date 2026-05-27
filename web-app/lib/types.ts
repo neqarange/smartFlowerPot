@@ -8,12 +8,6 @@ export type Metric = {
   status: MetricStatus;
 };
 
-export type FlowerInfo = {
-  name: string;
-  species: string;
-  imageUrl: string;
-};
-
 export type HistoryRow = {
   time: string;
   temperature: number;
@@ -37,4 +31,19 @@ export type SensorReading = {
   uvIndex: number;
   soilMoisture: number;
   createdAt: string;
+};
+
+export type ThresholdRange = { ok: [number, number]; warn: [number, number] };
+
+export type FlowerProfile = {
+  _id: string;
+  flowerName: string;
+  userId: string;
+  public: boolean;
+  light: ThresholdRange;
+  humidity: ThresholdRange;
+  temp: ThresholdRange;
+  createdAt: string;
+  updatedAt: string;
+  isOwner: boolean;
 };

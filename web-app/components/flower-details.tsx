@@ -38,7 +38,7 @@ export function FlowerDetails({ deviceId, defaultName, defaultSpecies }: FlowerD
   return (
     <>
       <div>
-        <Label className="text-sm font-black text-card-foreground mb-1 block">Flower name</Label>
+        <Label className="text-sm font-black text-card-foreground mb-1 block">Pot name</Label>
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}

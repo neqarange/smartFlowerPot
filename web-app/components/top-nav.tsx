@@ -10,10 +10,10 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Detail", href: "/detail" },
   { label: "History", href: "/history" },
   { label: "Notifications", href: "/notifications" },
   { label: "Devices", href: "/devices" },
+  { label: "Profiles", href: "/profiles" },
 ];
 
 function LeafLogo() {

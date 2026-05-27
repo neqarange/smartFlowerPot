@@ -1,7 +1,7 @@
 import "server-only";
 import { getToken } from "./auth-server";
 import type { Device } from "./api";
-import type { SensorReading } from "./types";
+import type { FlowerProfile, SensorReading } from "./types";
 
 const BASE = process.env.API_BASE_URL!;
 
@@ -26,4 +26,14 @@ export async function getReadingsServer(deviceId: string): Promise<SensorReading
     `/api/iot/readings?deviceId=${encodeURIComponent(deviceId)}`,
   );
   return data?.readings ?? [];
+}
+
+export async function getProfilesServer(): Promise<FlowerProfile[]> {
+  const data = await authedGet<{ profiles: FlowerProfile[] }>("/api/profiles");
+  return data?.profiles ?? [];
+}
+
+export async function getProfileByIdServer(id: string): Promise<FlowerProfile | null> {
+  const data = await authedGet<{ profile: FlowerProfile }>(`/api/profiles/${id}`);
+  return data?.profile ?? null;
 }

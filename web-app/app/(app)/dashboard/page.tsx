@@ -1,26 +1,28 @@
-import { FlowerCard } from "@/components/flower-card";
+import { CalendarDays } from "lucide-react";
+import { HeroCard } from "@/components/hero-card";
 import { MetricCard } from "@/components/metric-card";
-import { AreaChartCard } from "@/components/charts/area-chart-card";
-import { BarChartCard } from "@/components/charts/bar-chart-card";
+import { TabbedTrendChart, type TrendKey } from "@/components/charts/tabbed-trend-chart";
 import { PageHeading } from "@/components/page-heading";
-import { flower } from "@/lib/mock-data";
-import { getDevicesServer, getReadingsServer } from "@/lib/api-server";
-import { latestMetric, aggregateByDayOfWeek, aggregateByHour, aggregateByDayOfMonth } from "@/lib/aggregations";
+import {
+  getDevicesServer,
+  getProfileByIdServer,
+  getReadingsServer,
+} from "@/lib/api-server";
+import { latestMetric, aggregateByHour } from "@/lib/aggregations";
+import { deriveCareSuggestion } from "@/lib/care-rules";
 
-type Range = "day" | "weekly" | "monthly";
-
-function resolveRange(raw: string | undefined, fallback: Range): Range {
-  if (raw === "day" || raw === "weekly" || raw === "monthly") return raw;
-  return fallback;
+function resolveTrend(raw: string | undefined): TrendKey {
+  if (raw === "soil" || raw === "temp" || raw === "light") return raw;
+  return "soil";
 }
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ device?: string; humidityRange?: string }>;
+  searchParams: Promise<{ device?: string; trend?: string }>;
 }) {
-  const { device: deviceParamId, humidityRange: humidityRangeRaw } = await searchParams;
-  const humidityRange = resolveRange(humidityRangeRaw, "weekly");
+  const resolved = await searchParams;
+  const trend = resolveTrend(resolved.trend);
 
   const devices = await getDevicesServer();
 
@@ -36,62 +38,88 @@ export default async function DashboardPage({
     );
   }
 
-  const selectedDevice = devices.find((d) => d.deviceId === deviceParamId) ?? devices[0];
-  const readings = await getReadingsServer(selectedDevice.deviceId);
+  const selectedDevice =
+    devices.find((d) => d.deviceId === resolved.device) ?? devices[0];
 
-  const humidityMetric = latestMetric(readings, "soilMoisture", "%");
-  const temperatureMetric = latestMetric(readings, "airTemp", "°C");
-  const lightMetric = latestMetric(readings, "light", "lx");
+  const [readings, profile] = await Promise.all([
+    getReadingsServer(selectedDevice.deviceId),
+    selectedDevice.activeProfileId
+      ? getProfileByIdServer(selectedDevice.activeProfileId)
+      : Promise.resolve(null),
+  ]);
+
+  const soilMetric = latestMetric(readings, "soilMoisture", "%");
+  const tempMetric = latestMetric(readings, "airTemp", "°C", profile);
+  const lightMetric = latestMetric(readings, "light", "lx", profile);
+
+  const soilHourly = aggregateByHour(readings, "soilMoisture");
+  const tempHourly = aggregateByHour(readings, "airTemp");
   const lightHourly = aggregateByHour(readings, "light");
 
-  const humidityChart =
-    humidityRange === "day"
-      ? aggregateByHour(readings, "soilMoisture")
-      : humidityRange === "monthly"
-        ? aggregateByDayOfMonth(readings, "soilMoisture")
-        : aggregateByDayOfWeek(readings, "soilMoisture");
+  const datasets = {
+    soil: soilHourly,
+    temp: tempHourly,
+    light: lightHourly,
+  };
+
+  const suggestion = deriveCareSuggestion(readings[0], profile);
+
+  const today = new Date();
+  const todayLabel = today.toLocaleDateString(undefined, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 
   return (
     <>
       <PageHeading title="Dashboard" subtitle="Live plant overview" />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <FlowerCard
-          flower={flower}
+      <div className="flex flex-col gap-6">
+        <HeroCard
+          device={selectedDevice}
           devices={devices}
-          selectedDevice={selectedDevice}
-          status={humidityMetric.status}
+          status={suggestion.status}
+          suggestion={suggestion}
+          profile={profile}
         />
 
-        <AreaChartCard
-          title="Humidity graph"
-          data={humidityChart}
-          defaultRange="weekly"
-          rangeParamKey="humidityRange"
-          unit="%"
-        />
+        <div className="flex items-center justify-between gap-3 -mb-2 px-1">
+          <div className="flex items-center gap-2 text-white/80">
+            <CalendarDays className="size-4" aria-hidden />
+            <span className="text-sm font-semibold">
+              Today <span className="text-white/50 font-medium">· {todayLabel}</span>
+            </span>
+          </div>
+          <span className="text-[11px] font-bold uppercase tracking-widest text-white/40">
+            Latest readings
+          </span>
+        </div>
 
-        <div className="grid grid-cols-1 divide-y divide-gray-400 sm:grid-cols-3 sm:divide-y-0 sm:divide-x bg-card rounded-2xl overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <MetricCard
-            label="Humidity"
-            value={humidityMetric.value}
-            unit={humidityMetric.unit}
-            status={humidityMetric.status}
+            label="Soil moisture"
+            value={soilMetric.value}
+            unit={soilMetric.unit}
+            status={soilMetric.status}
+            sparkline={soilHourly}
           />
           <MetricCard
             label="Temperature"
-            value={temperatureMetric.value}
-            unit={temperatureMetric.unit}
-            status={temperatureMetric.status}
+            value={tempMetric.value}
+            unit={tempMetric.unit}
+            status={tempMetric.status}
+            sparkline={tempHourly}
           />
           <MetricCard
             label="Light"
             value={lightMetric.value}
             unit={lightMetric.unit}
             status={lightMetric.status}
+            sparkline={lightHourly}
           />
         </div>
 
-        <BarChartCard title="Light graph" data={lightHourly} unit=" lx" />
+        <TabbedTrendChart active={trend} datasets={datasets} searchParams={resolved} />
       </div>
     </>
   );

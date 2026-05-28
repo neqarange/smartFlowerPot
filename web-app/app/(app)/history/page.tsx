@@ -4,18 +4,18 @@ import { HistoryDatePicker } from "@/components/history/history-date-picker";
 import { AreaChartCard } from "@/components/charts/area-chart-card";
 import { BarChartCard } from "@/components/charts/bar-chart-card";
 import { PageHeading } from "@/components/page-heading";
-import { DeviceSwitcher } from "@/components/device-switcher";
 import { getDevicesServer, getReadingsServer } from "@/lib/api-server";
 import { aggregateByDayOfWeek, aggregateByHour, toHistoryRows } from "@/lib/aggregations";
+import { formatInAppTZ, formatYmd, parseYmdInAppTZ } from "@/lib/date-utils";
 
 function parseDate(raw: string | undefined): Date | undefined {
   if (!raw) return undefined;
-  const d = new Date(`${raw}T00:00:00`);
+  const d = parseYmdInAppTZ(raw);
   return isNaN(d.getTime()) ? undefined : d;
 }
 
 function formatSelectedLabel(date: Date): string {
-  return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  return formatInAppTZ(date, "EEEE, MMMM d");
 }
 
 export default async function HistoryPage({
@@ -50,7 +50,7 @@ export default async function HistoryPage({
     ? aggregateByHour(readings, "soilMoisture", { date: selectedDate })
     : aggregateByDayOfWeek(readings, "soilMoisture");
 
-  const activeDates = [...new Set(readings.map((r) => r.createdAt.slice(0, 10)))];
+  const activeDates = [...new Set(readings.map((r) => formatYmd(r.createdAt)))];
 
   const lightTitle = selectedDate ? `Light · ${formatSelectedLabel(selectedDate)}` : "Light · today";
 
@@ -60,11 +60,6 @@ export default async function HistoryPage({
         title="History"
         subtitle={<HistoryDatePicker selected={selectedDate} activeDates={activeDates} />}
       />
-      {devices.length > 1 && (
-        <div className="mb-4 max-w-xs">
-          <DeviceSwitcher devices={devices} selectedId={selectedDevice.deviceId} basePath="/history" />
-        </div>
-      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:items-start">
         <Card className="bg-card text-card-foreground rounded-2xl overflow-hidden">
           <CardHeader className="py-3 px-5 border-b border-gray-200">

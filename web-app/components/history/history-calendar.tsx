@@ -4,19 +4,12 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { getDefaultClassNames } from "react-day-picker";
+import { formatYmd } from "@/lib/date-utils";
 
 interface HistoryCalendarProps {
   activeDates?: string[];
   selected?: Date;
   onSelect: (day: Date | undefined) => void;
-}
-
-function formatYmd(date: Date): string {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
 }
 
 export function HistoryCalendar({

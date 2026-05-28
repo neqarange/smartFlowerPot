@@ -6,26 +6,15 @@ import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { HistoryCalendar } from "@/components/history/history-calendar";
 import { cn } from "@/lib/utils";
+import { formatYmd, formatInAppTZ } from "@/lib/date-utils";
 
 interface HistoryDatePickerProps {
   selected?: Date;
   activeDates: string[];
 }
 
-function formatYmd(date: Date): string {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
-}
-
 function formatLabel(date: Date): string {
-  return date.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
+  return formatInAppTZ(date, "EEEE, MMMM d");
 }
 
 export function HistoryDatePicker({ selected, activeDates }: HistoryDatePickerProps) {

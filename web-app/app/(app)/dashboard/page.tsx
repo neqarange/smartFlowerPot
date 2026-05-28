@@ -10,6 +10,7 @@ import {
 } from "@/lib/api-server";
 import { latestMetric, aggregateByHour } from "@/lib/aggregations";
 import { deriveCareSuggestion } from "@/lib/care-rules";
+import { formatInAppTZ } from "@/lib/date-utils";
 
 function resolveTrend(raw: string | undefined): TrendKey {
   if (raw === "soil" || raw === "temp" || raw === "light") return raw;
@@ -64,12 +65,7 @@ export default async function DashboardPage({
 
   const suggestion = deriveCareSuggestion(readings[0], profile);
 
-  const today = new Date();
-  const todayLabel = today.toLocaleDateString(undefined, {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const todayLabel = formatInAppTZ(new Date(), "EEEE, d MMMM");
 
   return (
     <>

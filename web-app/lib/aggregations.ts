@@ -1,6 +1,7 @@
 import type { FlowerProfile, HistoryRow, Metric, Reading, SensorReading } from "./types";
 import { statusForWithProfile } from "./sensor-thresholds";
 import type { NumericField } from "./sensor-thresholds";
+import { formatInAppTZ, formatYmd, toAppZonedDate } from "./date-utils";
 
 export function latestMetric(
   readings: SensorReading[],
@@ -19,13 +20,12 @@ export function aggregateByHour(
   { startHour = 9, endHour = 20, date }: { startHour?: number; endHour?: number; date?: Date } = {},
 ): Reading[] {
   const anchor = date ?? new Date();
-  const anchorDateStr = anchor.toDateString();
+  const anchorYmd = formatYmd(anchor);
   const buckets = new Map<number, number[]>();
 
   for (const r of readings) {
-    const d = new Date(r.createdAt);
-    if (d.toDateString() !== anchorDateStr) continue;
-    const h = d.getHours();
+    if (formatYmd(r.createdAt) !== anchorYmd) continue;
+    const h = toAppZonedDate(r.createdAt).getHours();
     if (h < startHour || h > endHour) continue;
     if (!buckets.has(h)) buckets.set(h, []);
     buckets.get(h)!.push(r[field]);
@@ -54,9 +54,9 @@ export function aggregateByDayOfWeek(readings: SensorReading[], field: NumericFi
   const buckets = new Map<number, number[]>();
 
   for (const r of readings) {
-    const d = new Date(r.createdAt);
-    if (d < cutoff) continue;
-    const idx = dayIndex(d);
+    const createdAt = new Date(r.createdAt);
+    if (createdAt < cutoff) continue;
+    const idx = dayIndex(toAppZonedDate(createdAt));
     if (!buckets.has(idx)) buckets.set(idx, []);
     buckets.get(idx)!.push(r[field]);
   }
@@ -76,17 +76,17 @@ export function aggregateByDayOfMonth(readings: SensorReading[], field: NumericF
   const buckets = new Map<string, number[]>();
 
   for (const r of readings) {
-    const d = new Date(r.createdAt);
-    if (d < cutoff) continue;
-    const key = `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const createdAt = new Date(r.createdAt);
+    if (createdAt < cutoff) continue;
+    const key = formatInAppTZ(createdAt, "MM-dd");
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key)!.push(r[field]);
   }
 
-  const today = new Date();
+  const todayZoned = toAppZonedDate(new Date());
   return Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - (29 - i));
+    const d = new Date(todayZoned);
+    d.setDate(todayZoned.getDate() - (29 - i));
     const t = `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const vals = buckets.get(t);
     const value = vals && vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
@@ -96,17 +96,13 @@ export function aggregateByDayOfMonth(readings: SensorReading[], field: NumericF
 
 export function toHistoryRows(readings: SensorReading[], limit = 24, date?: Date): HistoryRow[] {
   const rows = date
-    ? readings.filter((r) => new Date(r.createdAt).toDateString() === date.toDateString())
+    ? readings.filter((r) => formatYmd(r.createdAt) === formatYmd(date))
     : readings;
 
-  return rows.slice(0, limit).map((r) => {
-    const d = new Date(r.createdAt);
-    const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    return {
-      time,
-      temperature: Math.round(r.airTemp),
-      humidity: Math.round(r.soilMoisture),
-      light: Math.round(r.light),
-    };
-  });
+  return rows.slice(0, limit).map((r) => ({
+    time: formatInAppTZ(r.createdAt, "HH:mm"),
+    temperature: Math.round(r.airTemp),
+    humidity: Math.round(r.soilMoisture),
+    light: Math.round(r.light),
+  }));
 }

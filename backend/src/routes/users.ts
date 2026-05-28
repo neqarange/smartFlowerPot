@@ -3,7 +3,11 @@ import { randomUUID } from 'crypto';
 import jwt from 'jsonwebtoken';
 import { authenticateUser } from '../middleware/authUser';
 import { User } from '../models/User';
+import { PendingPairing } from '../models/PendingPairing';
 import { validate } from '../middleware/validate';
+
+// A pot must have announced itself within this window to be claimable.
+const ANNOUNCE_FRESHNESS_MS = 2 * 60 * 1000;
 
 const router = Router();
 
@@ -31,10 +35,22 @@ router.post('/devices', authenticateUser, async (req: Request, res: Response) =>
       return;
     }
 
+    const code = pairingCode.trim().toUpperCase();
+
     // Zkontroluj jestli pairing code už není použitý
-    const existingUser = await User.findOne({ 'devices.pairingCode': pairingCode.trim().toUpperCase() });
+    const existingUser = await User.findOne({ 'devices.pairingCode': code });
     if (existingUser) {
       res.status(409).json({ error: 'This pairing code is already linked to a device' });
+      return;
+    }
+
+    // Backend only accepts codes that a real pot has recently announced.
+    const pending = await PendingPairing.findOne({ pairingCode: code });
+    const fresh = pending && Date.now() - pending.lastSeenAt.getTime() < ANNOUNCE_FRESHNESS_MS;
+    if (!fresh) {
+      res.status(404).json({
+        error: 'No pot is broadcasting that code. Make sure your pot is powered on and connected to WiFi.',
+      });
       return;
     }
 
@@ -45,9 +61,11 @@ router.post('/devices', authenticateUser, async (req: Request, res: Response) =>
       deviceId,
       name: name.trim(),
       token,
-      pairingCode: pairingCode.trim().toUpperCase(),
+      pairingCode: code,
     });
     await user.save();
+
+    await PendingPairing.deleteOne({ pairingCode: code });
 
     res.status(201).json({ devices: user.devices });
   } catch (err) {

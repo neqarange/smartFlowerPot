@@ -337,6 +337,23 @@ void runPairingMode() {
   if (millis() - lastPoll < PAIRING_POLL_MS) return;
   lastPoll = millis();
 
+  // Announce presence so the backend will accept claims for our code.
+  {
+    String announceUrl = backendURL + "/api/iot/announce";
+    String announcePayload = "{\"pairingCode\":\"" + pairingCode + "\"}";
+    HTTPClient announceHttp;
+    announceHttp.begin(announceUrl);
+    announceHttp.addHeader("Content-Type", "application/json");
+    announceHttp.setTimeout(10000);
+    int announceCode = announceHttp.POST(announcePayload);
+    if (announceCode > 0) {
+      Serial.printf("[PAIR] Announce: %d\n", announceCode);
+    } else {
+      Serial.printf("[PAIR] Announce failed: %s\n", announceHttp.errorToString(announceCode).c_str());
+    }
+    announceHttp.end();
+  }
+
   String url = backendURL + "/api/iot/claim/" + pairingCode;
   Serial.printf("[PAIR] Polling: %s\n", url.c_str());
 

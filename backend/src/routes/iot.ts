@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { authenticateUser } from '../middleware/authUser';
 import { SensorReading } from '../models/SensorReading';
 import { User } from '../models/User';
+import { PendingPairing } from '../models/PendingPairing';
 import { DeviceJwtPayload } from '../types';
 import { validate } from '../middleware/validate';
 
@@ -67,6 +68,33 @@ router.get('/readings', authenticateUser, async (req: Request, res: Response) =>
   } catch (err) {
     console.error('[get readings]', err);
     res.status(500).json({ error: 'Failed to get readings' });
+  }
+});
+
+// POST /api/iot/announce
+// ESP32 announces its pairing code so the backend knows a real device is waiting.
+// Without a recent announcement, POST /api/users/devices will refuse to claim the code.
+router.post('/announce', async (req: Request, res: Response) => {
+  const error = validate(req.body, {
+    pairingCode: { type: 'string' },
+  });
+  if (error) {
+    res.status(400).json({ error });
+    return;
+  }
+
+  const code = String(req.body.pairingCode).trim().toUpperCase();
+
+  try {
+    await PendingPairing.findOneAndUpdate(
+      { pairingCode: code },
+      { pairingCode: code, lastSeenAt: new Date() },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({ status: 'announced' });
+  } catch (err) {
+    console.error('[announce]', err);
+    res.status(500).json({ error: 'Failed to announce' });
   }
 });
 
